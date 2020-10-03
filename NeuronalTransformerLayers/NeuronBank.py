@@ -1,0 +1,95 @@
+import sys
+sys.path.insert(0, '../')
+
+import torch
+import torch.nn as nn
+
+from NeuronalTransformerLayers.NeuronwiseLinear import NeuronwiseLinear
+import math
+
+
+class NeuronBank(nn.Module):
+    def __init__(self, config):
+        super(NeuronBank, self).__init__()
+
+        self.num_neurons = config.num_neurons
+        self.vec_size = config.vec_size
+        self.num_heads = config.num_heads
+
+        self.internal_vec_size = self.vec_size*self.num_heads
+
+        self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.vec_size))
+
+        self.values_out = NeuronwiseLinear(self.num_neurons, self.internal_vec_size, self.internal_vec_size)
+        self.keys_out = NeuronwiseLinear(self.num_neurons, self.internal_vec_size, self.internal_vec_size)
+
+        self.layer_norm = torch.nn.LayerNorm(self.vec_size*self.num_heads, eps=config.layer_norm_eps)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.normal_(self.query_bank)
+
+    def separate_attention_heads(self, hidden_state):
+        hidden_state_shape = hidden_state.shape
+        hidden_state_reshaped = hidden_state.view(hidden_state_shape[0], hidden_state_shape[1], self.vec_size, self.num_heads)
+
+        return hidden_state_reshaped
+
+    def reshape_outputs(self, output_state):
+        return output_state.permute(1, 0, 2).contiguous()
+
+    #takes input in the format (batch size, num_inputs, vec_size*num_heads)
+    def forward(self, hidden_states):
+        hidden_keys = hidden_states[0]
+        hidden_values = hidden_states[1]
+
+        keys_reshaped = self.separate_attention_heads(hidden_keys)
+        # shape: (num_heads, vec_size, num_in, bs)
+        keys_reshaped = keys_reshaped.permute(3, 2, 1, 0).contiguous()
+
+        keys_reshaped_shape = keys_reshaped.shape
+        # shape: (num_heads, vec_size, num_in*bs)
+        keys_reshaped = keys_reshaped.view(*keys_reshaped_shape[:2], keys_reshaped_shape[2]*keys_reshaped_shape[3])
+
+        # shape: (num_heads, num_out, num_in*bs)
+        attention_scalars = torch.matmul(self.query_bank, keys_reshaped) / math.sqrt(self.vec_size)
+
+        attention_scalars_shape = attention_scalars.shape
+        attention_scalars_reshaped = attention_scalars.view(*attention_scalars_shape[0:2], keys_reshaped_shape[2], keys_reshaped_shape[3])
+        # shape: (bs, num_heads, num_out, num_in)
+        attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
+
+        attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped)
+
+
+        values_reshaped = self.separate_attention_heads(hidden_values)
+        # shape: (bs, num_heads, num_in, vec_size)
+        values_reshaped = values_reshaped.permute(0, 3, 1, 2).contiguous()
+
+        # shape: (bs, num_heads, num_out, vec_size)
+        attention_outputs = torch.matmul(attention_probs, values_reshaped)
+
+
+        attention_outputs_reshaped = attention_outputs.permute(0, 2, 3, 1).contiguous()
+        output_values_reshaped_shape = attention_outputs_reshaped.shape
+        # shape: (bs, num_out, vec_size*num_heads)
+        attention_outputs_reshaped = attention_outputs_reshaped.view(*output_values_reshaped_shape[:2], output_values_reshaped_shape[2]*output_values_reshaped_shape[3])
+        attention_outputs_reshaped = self.layer_norm(attention_outputs_reshaped)
+        # shape: (num_out, bs, vec_size*num_heads)
+        attention_outputs_reshaped = attention_outputs_reshaped.permute(1, 0, 2).contiguous()
+
+        output_keys = self.reshape_outputs(self.keys_out(attention_outputs_reshaped))
+        output_values = self.reshape_outputs(self.values_out(attention_outputs_reshaped))
+
+        return (output_keys, output_values)
+'''
+import numpy as np
+from NeuronalTransformerLayers.NeuronBankConfig import NeuronBankConfig
+
+config = NeuronBankConfig()
+neuron_bank = NeuronBank(config)
+
+input_keys = torch.Tensor(np.random.normal(size=(8, 13, config.vec_size*config.num_heads)))
+input_values = torch.Tensor(np.random.normal(size=(8, 13, config.vec_size*config.num_heads)))
+
+neuron_bank((input_keys, input_values))'''
