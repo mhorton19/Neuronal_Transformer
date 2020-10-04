@@ -8,6 +8,8 @@ from NeuronalTransformerLayers.NeuronBank import NeuronBank
 from NeuronalTransformerLayers.NeuronEncoder import NeuronEncoder
 from NeuronalTransformerLayers.NeuronDecoder import NeuronDecoder
 
+#ADD RESIDUAL CONNECTIONS (repeatedly feeding embeddings to each neuron layer)
+
 class NeuronalTransformer(nn.Module):
     def __init__(self, roberta_config, neuron_config):
         super(NeuronalTransformer, self).__init__()
@@ -16,6 +18,7 @@ class NeuronalTransformer(nn.Module):
         self.neuron_bank = NeuronBank(neuron_config)
         self.decoder = NeuronDecoder(roberta_config, neuron_config)
         self.num_iterations = neuron_config.num_iterations
+
     def forward(
             self,
             hidden_states,
@@ -27,11 +30,12 @@ class NeuronalTransformer(nn.Module):
             output_hidden_states=False,
             return_dict=False,
     ):
-        x = self.encoder(hidden_states)
+        encoded_inputs = self.encoder(hidden_states)
 
-        x = self.neuron_bank(x, self_connection=False)
+        x = self.neuron_bank(encoded_inputs, self_connection=False)
         for i in range(self.num_iterations-1):
-            x = self.neuron_bank(x, self_connection=True)
+            concatenated_hidden_states = [torch.cat((x, inp), dim=1) for x, inp in zip(x, encoded_inputs)]
+            x = self.neuron_bank(concatenated_hidden_states, self_connection=True)
 
         x = self.decoder(hidden_states, x)
 

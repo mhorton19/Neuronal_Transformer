@@ -13,7 +13,8 @@ class NeuronDecoder(nn.Module):
         self.num_heads = neuron_config.num_heads
         self.out_len = self.vec_size * self.num_heads
         self.num_duplicates = neuron_config.num_duplicates
-        self.linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
+        self.query_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
+        self.reembed_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
 
         self.layer_norm = torch.nn.LayerNorm(self.vec_size * self.num_heads * self.num_duplicates, eps=neuron_config.layer_norm_eps)
 
@@ -25,7 +26,7 @@ class NeuronDecoder(nn.Module):
 
     def forward(self, embeddings, hidden_states):
         embeddings_shape = embeddings.shape
-        queries = self.linear(embeddings)
+        queries = self.query_linear(embeddings)
         queries = queries.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, self.out_len)
         queries_shape = queries.shape
         queries = queries.view(*queries_shape[:2], self.vec_size, self.num_heads)
@@ -51,4 +52,5 @@ class NeuronDecoder(nn.Module):
         values_out_reshaped = values_out_reshaped.permute(0, 2, 1, 3).contiguous()
         values_out_reshaped = values_out_reshaped.view(*values_out_reshaped.shape[:2], -1)
 
-        return self.layer_norm(values_out_reshaped)
+        reembedded = self.reembed_linear(embeddings)
+        return self.layer_norm(values_out_reshaped + reembedded)

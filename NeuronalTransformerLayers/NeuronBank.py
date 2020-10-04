@@ -42,7 +42,8 @@ class NeuronBank(nn.Module):
 
     def reset_parameters(self) -> None:
         nn.init.normal_(self.query_bank)
-        nn.init.zeros_(self.connectivity_scalars)
+        if self.use_connectivity:
+            nn.init.normal_(self.connectivity_scalars)
 
     def separate_attention_heads(self, hidden_state):
         hidden_state_shape = hidden_state.shape
