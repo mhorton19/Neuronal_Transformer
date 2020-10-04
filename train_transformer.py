@@ -32,7 +32,7 @@ roberta_config = RobertaConfig(
 standard_config = RobertaConfig(
     vocab_size=52_000,
     max_position_embeddings=514,
-    hidden_size=516,
+    hidden_size=540,
     num_attention_heads=12,
     num_hidden_layers=6,
     type_vocab_size=1,
@@ -88,9 +88,9 @@ training_args = TrainingArguments(
     num_train_epochs=20,
     per_gpu_train_batch_size=8,
     save_steps=10_000,
-    logging_steps=1_000,
+    logging_steps=10_000,
     #warmup_steps=30_000,
-    logging_dir='neuronal_log' if USE_NEURONAL else 'standard_log',
+    logging_dir='neuronal_log' if USE_NEURsoftmax_valONAL else 'standard_log',
     save_total_limit=2,
 )
 

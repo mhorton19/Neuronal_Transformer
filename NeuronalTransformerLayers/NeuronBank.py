@@ -7,6 +7,14 @@ import torch.nn as nn
 from NeuronalTransformerLayers.NeuronwiseLinear import NeuronwiseLinear
 import math
 
+def scaled_softmax(attention_vals, scale_vals, dim=-1):
+    attention_exp = torch.exp(attention_vals)
+    attention_exp_scaled = attention_exp * scale_vals
+    print('\nMEAN: ' + str(float(scale_vals.mean())) + '    STD: ' + str(float(scale_vals.std())))
+    softmax_val = attention_exp_scaled / torch.sum(attention_exp_scaled, dim, keepdim=True)
+
+    return softmax_val
+
 
 class NeuronBank(nn.Module):
     def __init__(self, config):
@@ -18,6 +26,12 @@ class NeuronBank(nn.Module):
 
         self.internal_vec_size = self.vec_size*self.num_heads
 
+        self.use_connectivity = config.use_connectivity
+
+        if self.use_connectivity:
+            self.connectivity_scalars = torch.nn.Parameter(
+                torch.Tensor(1, self.num_heads, self.num_neurons, self.num_neurons))
+
         self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.vec_size))
 
         self.values_out = NeuronwiseLinear(self.num_neurons, self.internal_vec_size, self.internal_vec_size)
@@ -28,6 +42,7 @@ class NeuronBank(nn.Module):
 
     def reset_parameters(self) -> None:
         nn.init.normal_(self.query_bank)
+        nn.init.zeros_(self.connectivity_scalars)
 
     def separate_attention_heads(self, hidden_state):
         hidden_state_shape = hidden_state.shape
@@ -39,7 +54,7 @@ class NeuronBank(nn.Module):
         return output_state.permute(1, 0, 2).contiguous()
 
     #takes input in the format (batch size, num_inputs, vec_size*num_heads)
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, self_connection=False):
         hidden_keys = hidden_states[0]
         hidden_values = hidden_states[1]
 
@@ -59,7 +74,11 @@ class NeuronBank(nn.Module):
         # shape: (bs, num_heads, num_out, num_in)
         attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
 
-        attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped)
+        if self_connection and self.use_connectivity:
+            connectivity_matrix = torch.sigmoid(self.connectivity_scalars)
+            attention_probs = scaled_softmax(attention_scalars_reshaped, connectivity_matrix, dim=-1)
+        else:
+            attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped)
 
 
         values_reshaped = self.separate_attention_heads(hidden_values)

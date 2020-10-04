@@ -29,8 +29,9 @@ class NeuronalTransformer(nn.Module):
     ):
         x = self.encoder(hidden_states)
 
-        for i in range(self.num_iterations):
-            x = self.neuron_bank(x)
+        x = self.neuron_bank(x, self_connection=False)
+        for i in range(self.num_iterations-1):
+            x = self.neuron_bank(x, self_connection=True)
 
         x = self.decoder(hidden_states, x)
 
