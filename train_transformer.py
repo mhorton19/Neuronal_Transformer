@@ -90,7 +90,7 @@ training_args = TrainingArguments(
     save_steps=10_000,
     logging_steps=10_000,
     #warmup_steps=30_000,
-    logging_dir='neuronal_log' if USE_NEURsoftmax_valONAL else 'standard_log',
+    logging_dir='neuronal_log' if USE_NEURONAL else 'standard_log',
     save_total_limit=2,
 )
 
