@@ -23,6 +23,8 @@ class NeuronalTransformer(nn.Module):
 
         self.embedding_transformation = nn.Linear(roberta_config.hidden_size, roberta_config.hidden_size)
 
+        self.layer_norm = nn.LayerNorm(roberta_config.hidden_size, eps=roberta_config.layer_norm_eps)
+
     def forward(
             self,
             hidden_states,
@@ -40,5 +42,5 @@ class NeuronalTransformer(nn.Module):
         for i in range(self.num_iterations-1):
             hidden_states_transformed, neuronal_states = self.neuronal_layer(hidden_states_transformed, neuronal_states)
 
-        return hidden_states_transformed
+        return self.layer_norm(hidden_states_transformed)
 
