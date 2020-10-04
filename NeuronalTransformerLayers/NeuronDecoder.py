@@ -14,9 +14,9 @@ class NeuronDecoder(nn.Module):
         self.out_len = self.vec_size * self.num_heads
         self.num_duplicates = neuron_config.num_duplicates
         self.query_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
-        self.reembed_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
+        self.reembed_linear = nn.Linear(roberta_config.hidden_size, roberta_config.hidden_size)
 
-        self.layer_norm = torch.nn.LayerNorm(self.vec_size * self.num_heads * self.num_duplicates, eps=neuron_config.layer_norm_eps)
+        self.layer_norm = torch.nn.LayerNorm(roberta_config.hidden_size, eps=neuron_config.layer_norm_eps)
 
     def separate_attention_heads(self, hidden_state):
         hidden_state_shape = hidden_state.shape
@@ -52,5 +52,5 @@ class NeuronDecoder(nn.Module):
         values_out_reshaped = values_out_reshaped.permute(0, 2, 1, 3).contiguous()
         values_out_reshaped = values_out_reshaped.view(*values_out_reshaped.shape[:2], -1)
 
-        reembedded = self.reembed_linear(embeddings)
-        return self.layer_norm(values_out_reshaped + reembedded)
+        reembedded = self.reembed_linear(self.layer_norm(values_out_reshaped))
+        return reembedded

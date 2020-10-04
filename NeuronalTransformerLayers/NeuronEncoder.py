@@ -12,6 +12,7 @@ class NeuronEncoder(nn.Module):
         self.key_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
         self.value_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
 
+
     def forward(self, embeddings):
         embeddings_shape = embeddings.shape
 
