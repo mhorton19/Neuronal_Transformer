@@ -40,7 +40,8 @@ standard_config = RobertaConfig(
 
 from NeuronalTransformerLayers.NeuronBankConfig import NeuronBankConfig
 neuron_config = NeuronBankConfig(
-    vec_size=VEC_LEN,
+    query_len=VEC_LEN+1,
+    values_len=VEC_LEN,
     num_heads=NUM_HEADS,
     num_duplicates=DUPLICATE_OUTPUTS,
     num_neurons=500,

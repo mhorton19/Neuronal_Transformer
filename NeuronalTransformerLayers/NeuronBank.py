@@ -33,10 +33,10 @@ class NeuronBank(nn.Module):
             self.connectivity_scalars = torch.nn.Parameter(
                 torch.Tensor(1, self.num_heads, self.num_neurons, self.num_neurons))
 
-        self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads * self.num_neurons, self.query_len))
+        self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.query_len))
 
         self.values_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.values_len * self.num_heads)
-        self.keys_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.query_len)
+        self.keys_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.query_len * self.num_heads)
 
         self.layer_norm = torch.nn.LayerNorm(self.values_len * self.num_heads, eps=config.layer_norm_eps)
         self.reset_parameters()
@@ -46,18 +46,37 @@ class NeuronBank(nn.Module):
         if self.use_connectivity:
             nn.init.normal_(self.connectivity_scalars)
 
-    def separate_attention_heads(self, hidden_state):
+    def separate_attention_heads(self, hidden_state, vec_len):
         hidden_state_shape = hidden_state.shape
-        hidden_state_reshaped = hidden_state.view(hidden_state_shape[0], hidden_state_shape[1], self.values_len, self.num_heads)
+        hidden_state_reshaped = hidden_state.view(hidden_state_shape[0], hidden_state_shape[1], vec_len, self.num_heads)
 
         return hidden_state_reshaped
 
     def reshape_outputs(self, output_state):
         return output_state.permute(1, 0, 2).contiguous()
 
-    #takes input in the format (batch size, num_inputs, values_len*num_heads) for values and (batch size, num_inputs, query_len) for keys
+    #takes input in the format (batch size, num_inputs, values_len*num_heads) for values and (batch size, num_inputs, query_len*num_heads) for keys
     def forward(self, hidden_states, self_connection=False):
         hidden_keys = hidden_states[0]
+        hidden_values = hidden_states[1]
+
+        keys_reshaped = self.separate_attention_heads(hidden_keys, self.query_len)
+        # shape: (num_heads, vec_size, num_in, bs)
+        keys_reshaped = keys_reshaped.permute(3, 2, 1, 0).contiguous()
+
+        keys_reshaped_shape = keys_reshaped.shape
+        # shape: (num_heads, vec_size, num_in*bs)
+        keys_reshaped = keys_reshaped.view(*keys_reshaped_shape[:2], keys_reshaped_shape[2] * keys_reshaped_shape[3])
+
+        # shape: (num_heads, num_out, num_in*bs)
+        attention_scalars = torch.matmul(self.query_bank, keys_reshaped) / math.sqrt(self.query_len)
+
+        attention_scalars_shape = attention_scalars.shape
+        attention_scalars_reshaped = attention_scalars.view(*attention_scalars_shape[0:2], keys_reshaped_shape[2],
+                                                            keys_reshaped_shape[3])
+        # shape: (bs, num_heads, num_out, num_in)
+        attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
+        '''hidden_keys = hidden_states[0]
         hidden_values = hidden_states[1]
 
         # shape: (query_len, num_in, bs)
@@ -72,7 +91,7 @@ class NeuronBank(nn.Module):
 
         attention_scalars_reshaped = attention_scalars.view(self.num_heads, self.num_neurons, keys_reshaped_shape[1], keys_reshaped_shape[2])
         # shape: (bs, num_heads, num_out, num_in)
-        attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
+        attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()'''
 
         if self_connection and self.use_connectivity:
             connectivity_matrix = torch.sigmoid(self.connectivity_scalars)
@@ -81,7 +100,7 @@ class NeuronBank(nn.Module):
             attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped)
 
 
-        values_reshaped = self.separate_attention_heads(hidden_values)
+        values_reshaped = self.separate_attention_heads(hidden_values, self.values_len)
         # shape: (bs, num_heads, num_in, vec_size)
         values_reshaped = values_reshaped.permute(0, 3, 1, 2).contiguous()
 
