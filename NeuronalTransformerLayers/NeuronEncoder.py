@@ -7,19 +7,19 @@ class NeuronEncoder(nn.Module):
     def __init__(self, roberta_config, neuron_config):
         super(NeuronEncoder, self).__init__()
 
-        self.out_len = neuron_config.vec_size * neuron_config.num_heads
+        self.out_len = neuron_config.values_len * neuron_config.num_heads
         self.num_duplicates = neuron_config.num_duplicates
-        self.key_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
-        self.value_linear = nn.Linear(self.out_len * self.num_duplicates, roberta_config.hidden_size)
+        self.key_linear = nn.Linear(roberta_config.hidden_size, neuron_config.query_len * self.num_duplicates)
+        self.value_linear = nn.Linear(roberta_config.hidden_size, neuron_config.values_len * neuron_config.num_heads * self.num_duplicates)
 
 
     def forward(self, embeddings):
         embeddings_shape = embeddings.shape
 
         output_keys = self.key_linear(embeddings)
-        output_keys = output_keys.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, self.out_len)
+        output_keys = output_keys.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, -1)
 
         output_vals = self.value_linear(embeddings)
-        output_vals = output_vals.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, self.out_len)
+        output_vals = output_vals.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, -1)
 
         return (output_keys, output_vals)

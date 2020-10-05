@@ -21,10 +21,11 @@ class NeuronBank(nn.Module):
         super(NeuronBank, self).__init__()
 
         self.num_neurons = config.num_neurons
-        self.vec_size = config.vec_size
+        self.values_len = config.values_len
+        self.query_len = config.query_len
         self.num_heads = config.num_heads
 
-        self.internal_vec_size = self.vec_size*self.num_heads
+        self.internal_vec_size = self.values_len * self.num_heads
 
         self.use_connectivity = config.use_connectivity
 
@@ -32,12 +33,12 @@ class NeuronBank(nn.Module):
             self.connectivity_scalars = torch.nn.Parameter(
                 torch.Tensor(1, self.num_heads, self.num_neurons, self.num_neurons))
 
-        self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.vec_size))
+        self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads * self.num_neurons, self.query_len))
 
-        self.values_out = NeuronwiseLinear(self.num_neurons, self.internal_vec_size, self.internal_vec_size)
-        self.keys_out = NeuronwiseLinear(self.num_neurons, self.internal_vec_size, self.internal_vec_size)
+        self.values_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.values_len * self.num_heads)
+        self.keys_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.query_len)
 
-        self.layer_norm = torch.nn.LayerNorm(self.vec_size*self.num_heads, eps=config.layer_norm_eps)
+        self.layer_norm = torch.nn.LayerNorm(self.values_len * self.num_heads, eps=config.layer_norm_eps)
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -47,31 +48,29 @@ class NeuronBank(nn.Module):
 
     def separate_attention_heads(self, hidden_state):
         hidden_state_shape = hidden_state.shape
-        hidden_state_reshaped = hidden_state.view(hidden_state_shape[0], hidden_state_shape[1], self.vec_size, self.num_heads)
+        hidden_state_reshaped = hidden_state.view(hidden_state_shape[0], hidden_state_shape[1], self.values_len, self.num_heads)
 
         return hidden_state_reshaped
 
     def reshape_outputs(self, output_state):
         return output_state.permute(1, 0, 2).contiguous()
 
-    #takes input in the format (batch size, num_inputs, vec_size*num_heads)
+    #takes input in the format (batch size, num_inputs, values_len*num_heads) for values and (batch size, num_inputs, query_len) for keys
     def forward(self, hidden_states, self_connection=False):
         hidden_keys = hidden_states[0]
         hidden_values = hidden_states[1]
 
-        keys_reshaped = self.separate_attention_heads(hidden_keys)
-        # shape: (num_heads, vec_size, num_in, bs)
-        keys_reshaped = keys_reshaped.permute(3, 2, 1, 0).contiguous()
+        # shape: (query_len, num_in, bs)
+        keys_reshaped = hidden_keys.permute(2, 1, 0).contiguous()
 
         keys_reshaped_shape = keys_reshaped.shape
-        # shape: (num_heads, vec_size, num_in*bs)
-        keys_reshaped = keys_reshaped.view(*keys_reshaped_shape[:2], keys_reshaped_shape[2]*keys_reshaped_shape[3])
+        # shape: (query_len, num_in*bs)
+        keys_reshaped = keys_reshaped.view(keys_reshaped_shape[0], keys_reshaped_shape[1]*keys_reshaped_shape[2])
 
-        # shape: (num_heads, num_out, num_in*bs)
-        attention_scalars = torch.matmul(self.query_bank, keys_reshaped) / math.sqrt(self.vec_size)
+        # shape: (num_heads * num_out, num_in*bs)
+        attention_scalars = torch.matmul(self.query_bank, keys_reshaped) / math.sqrt(self.query_len)
 
-        attention_scalars_shape = attention_scalars.shape
-        attention_scalars_reshaped = attention_scalars.view(*attention_scalars_shape[0:2], keys_reshaped_shape[2], keys_reshaped_shape[3])
+        attention_scalars_reshaped = attention_scalars.view(self.num_heads, self.num_neurons, keys_reshaped_shape[1], keys_reshaped_shape[2])
         # shape: (bs, num_heads, num_out, num_in)
         attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
 
