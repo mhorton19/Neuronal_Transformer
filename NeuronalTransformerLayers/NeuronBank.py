@@ -27,12 +27,6 @@ class NeuronBank(nn.Module):
 
         self.internal_vec_size = self.values_len * self.num_heads
 
-        self.use_connectivity = config.use_connectivity
-
-        if self.use_connectivity:
-            self.connectivity_scalars = torch.nn.Parameter(
-                torch.Tensor(1, self.num_heads, self.num_neurons, self.num_neurons))
-
         self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.query_len))
 
         self.values_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.values_len * self.num_heads)
@@ -43,8 +37,7 @@ class NeuronBank(nn.Module):
 
     def reset_parameters(self) -> None:
         nn.init.normal_(self.query_bank)
-        if self.use_connectivity:
-            nn.init.normal_(self.connectivity_scalars)
+
 
     def separate_attention_heads(self, hidden_state, vec_len):
         hidden_state_shape = hidden_state.shape
@@ -56,7 +49,7 @@ class NeuronBank(nn.Module):
         return output_state.permute(1, 0, 2).contiguous()
 
     #takes input in the format (batch size, num_inputs, values_len*num_heads) for values and (batch size, num_inputs, query_len*num_heads) for keys
-    def forward(self, hidden_states, self_connection=False):
+    def forward(self, hidden_states, neuron_bank_connectivity_sub):
         hidden_keys = hidden_states[0]
         hidden_values = hidden_states[1]
 
@@ -76,28 +69,8 @@ class NeuronBank(nn.Module):
                                                             keys_reshaped_shape[3])
         # shape: (bs, num_heads, num_out, num_in)
         attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()
-        '''hidden_keys = hidden_states[0]
-        hidden_values = hidden_states[1]
 
-        # shape: (query_len, num_in, bs)
-        keys_reshaped = hidden_keys.permute(2, 1, 0).contiguous()
-
-        keys_reshaped_shape = keys_reshaped.shape
-        # shape: (query_len, num_in*bs)
-        keys_reshaped = keys_reshaped.view(keys_reshaped_shape[0], keys_reshaped_shape[1]*keys_reshaped_shape[2])
-
-        # shape: (num_heads * num_out, num_in*bs)
-        attention_scalars = torch.matmul(self.query_bank, keys_reshaped) / math.sqrt(self.query_len)
-
-        attention_scalars_reshaped = attention_scalars.view(self.num_heads, self.num_neurons, keys_reshaped_shape[1], keys_reshaped_shape[2])
-        # shape: (bs, num_heads, num_out, num_in)
-        attention_scalars_reshaped = attention_scalars_reshaped.permute(3, 0, 1, 2).contiguous()'''
-
-        if self_connection and self.use_connectivity:
-            connectivity_matrix = torch.sigmoid(self.connectivity_scalars)
-            attention_probs = scaled_softmax(attention_scalars_reshaped, connectivity_matrix, dim=-1)
-        else:
-            attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped)
+        attention_probs = nn.Softmax(dim=-1)(attention_scalars_reshaped - neuron_bank_connectivity_sub)
 
 
         values_reshaped = self.separate_attention_heads(hidden_values, self.values_len)

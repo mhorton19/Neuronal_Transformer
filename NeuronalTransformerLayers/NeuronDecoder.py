@@ -25,7 +25,7 @@ class NeuronDecoder(nn.Module):
         return hidden_state_reshaped
 
     # takes input in the format (batch size, num_inputs, values_len*num_heads) for values and (batch size, num_inputs, query_len*num_heads) for keys
-    def forward(self, embeddings, hidden_states):
+    def forward(self, embeddings, hidden_states, output_connectivity_sub):
         embeddings_shape = embeddings.shape
         queries = self.query_linear(embeddings)
         queries = queries.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, self.query_len * self.num_heads)
@@ -44,7 +44,7 @@ class NeuronDecoder(nn.Module):
         attention_scores = torch.matmul(queries, keys_reshaped)
         attention_scores = attention_scores / math.sqrt(self.query_len)
 
-        attention_probs = nn.Softmax(dim=-1)(attention_scores)
+        attention_probs = nn.Softmax(dim=-1)(attention_scores - output_connectivity_sub)
 
         values_out = torch.matmul(attention_probs, values_reshaped)
 

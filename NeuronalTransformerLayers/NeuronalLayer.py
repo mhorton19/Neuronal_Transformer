@@ -13,7 +13,7 @@ class NeuronalLayer(nn.Module):
         self.decoder = NeuronDecoder(roberta_config, neuron_config)
         self.layer_norm = nn.LayerNorm(roberta_config.hidden_size, eps=roberta_config.layer_norm_eps)
 
-    def forward(self, hidden_states, neuron_states=None):
+    def forward(self, hidden_states, neuron_states=None, neuron_bank_connectivity_sub=0, output_connectivity_sub=0):
         hidden_states_norm = self.layer_norm(hidden_states)
 
         encoded_inputs = self.encoder(hidden_states_norm)
@@ -23,9 +23,9 @@ class NeuronalLayer(nn.Module):
         else:
             input_states = [torch.cat((inp, x), dim=1) for inp, x in zip(encoded_inputs, neuron_states)]
 
-        out_neuron_states = self.neuron_bank(input_states)
+        out_neuron_states = self.neuron_bank(input_states, neuron_bank_connectivity_sub)
 
-        out_states_addition = self.decoder(hidden_states_norm, out_neuron_states)
+        out_states_addition = self.decoder(hidden_states_norm, out_neuron_states, output_connectivity_sub)
 
         out_states = hidden_states + out_states_addition
 
