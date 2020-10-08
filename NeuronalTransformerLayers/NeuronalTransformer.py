@@ -75,13 +75,12 @@ class NeuronalTransformer(nn.Module):
             neuron_bank_connectivity_sub = 0
             output_connectivity_sub = 0
 
-        hidden_states_transformed, neuronal_states = self.neuronal_layer(hidden_states_transformed,
+        hidden_states_transformed, neuron_outputs = self.neuronal_layer(hidden_states_transformed,
                                                                              neuron_bank_connectivity_sub=input_connectivity_sub,
                                                                              output_connectivity_sub=output_connectivity_sub)
         for i in range(self.num_iterations-1):
-            hidden_states_transformed, neuronal_states = self.neuronal_layer(hidden_states_transformed,
-                                                                             neuron_states=neuronal_states,
-                                                                             neuron_bank_connectivity_sub=neuron_bank_connectivity_sub,
+            hidden_states_transformed, neuron_outputs = self.neuronal_layer(hidden_states_transformed,
+                                                                             prev_neuron_outputs=neuron_outputs,                                                          neuron_bank_connectivity_sub=neuron_bank_connectivity_sub,
                                                                              output_connectivity_sub=output_connectivity_sub)
 
 

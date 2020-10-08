@@ -1,8 +1,6 @@
 from tokenizers.implementations import ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
 
-import torch
-
 tokenizer = ByteLevelBPETokenizer(
     "./EsperBERTo/vocab.json",
     "./EsperBERTo/merges.txt",
@@ -20,6 +18,8 @@ DUPLICATE_OUTPUTS = 5
 USE_CONNECTIVITY = False
 NUM_NEURONS = 300
 HIDDEN_SIZE = 514
+EXPANDED_SIZE = 1500
+
 from transformers_local.src.transformers.configuration_roberta import RobertaConfig
 
 roberta_config = RobertaConfig(
@@ -42,12 +42,13 @@ standard_config = RobertaConfig(
 
 from NeuronalTransformerLayers.NeuronBankConfig import NeuronBankConfig
 neuron_config = NeuronBankConfig(
-    query_len=VEC_LEN,
+    query_len=VEC_LEN+1,
     values_len=VEC_LEN,
     num_heads=NUM_HEADS,
     num_duplicates=DUPLICATE_OUTPUTS,
     num_neurons=NUM_NEURONS,
-    use_connectivity=USE_CONNECTIVITY
+    use_connectivity=USE_CONNECTIVITY,
+    expanded_size=EXPANDED_SIZE
 )
 
 

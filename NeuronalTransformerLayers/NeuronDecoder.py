@@ -33,7 +33,7 @@ class NeuronDecoder(nn.Module):
         queries = queries.view(*queries_shape[:2], self.query_len, self.num_heads)
         queries = queries.permute(0, 3, 1, 2).contiguous()
 
-        keys, values = hidden_states
+        _, keys, values = hidden_states
 
         # shape: bs, num_heads, query_len, num_in
         keys_reshaped = self.separate_attention_heads(keys, self.query_len).permute(0, 3, 2, 1).contiguous()

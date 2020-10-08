@@ -25,8 +25,6 @@ class NeuronBank(nn.Module):
         self.query_len = config.query_len
         self.num_heads = config.num_heads
 
-        self.internal_vec_size = self.values_len * self.num_heads
-
         self.query_bank = torch.nn.Parameter(torch.Tensor(self.num_heads, self.num_neurons, self.query_len))
 
         self.values_out = NeuronwiseLinear(self.num_neurons, self.values_len * self.num_heads, self.values_len * self.num_heads)
