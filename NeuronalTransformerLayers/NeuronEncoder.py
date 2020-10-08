@@ -9,8 +9,8 @@ class NeuronEncoder(nn.Module):
 
         self.out_len = neuron_config.values_len * neuron_config.num_heads
         self.num_duplicates = neuron_config.num_duplicates
-        self.key_linear = nn.Linear(roberta_config.hidden_size, neuron_config.query_len * neuron_config.num_heads * self.num_duplicates)
-        self.value_linear = nn.Linear(roberta_config.hidden_size, neuron_config.values_len * neuron_config.num_heads * self.num_duplicates)
+        self.key_linear = nn.Linear(neuron_config.expanded_size, neuron_config.query_len * neuron_config.num_heads * self.num_duplicates)
+        self.value_linear = nn.Linear(neuron_config.expanded_size, neuron_config.values_len * neuron_config.num_heads * self.num_duplicates)
 
 
     def forward(self, embeddings):

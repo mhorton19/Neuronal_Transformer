@@ -11,7 +11,7 @@ class NeuronalLayer(nn.Module):
         self.encoder = NeuronEncoder(roberta_config, neuron_config)
         self.neuron_bank = NeuronBank(neuron_config)
         self.decoder = NeuronDecoder(roberta_config, neuron_config)
-        self.layer_norm = nn.LayerNorm(roberta_config.hidden_size, eps=roberta_config.layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(neuron_config.expanded_size, eps=roberta_config.layer_norm_eps)
 
     def forward(self, hidden_states, neuron_states=None, neuron_bank_connectivity_sub=0, output_connectivity_sub=0):
         hidden_states_norm = self.layer_norm(hidden_states)

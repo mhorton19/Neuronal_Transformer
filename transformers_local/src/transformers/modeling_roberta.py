@@ -1087,7 +1087,7 @@ class NeuralRobertaForMaskedLM(RobertaPreTrainedModel):
             )
 
         self.roberta = NeuralRobertaModel(roberta_config, neural_config, add_pooling_layer=False)
-        self.lm_head = RobertaLMHead(roberta_config)
+        self.lm_head = NeuronalLMHead(roberta_config, neural_config)
 
         self.init_weights()
 
@@ -1185,6 +1185,30 @@ class RobertaLMHead(nn.Module):
     def forward(self, features, **kwargs):
         x = self.dense(features)
         x = gelu(x)
+        x = self.layer_norm(x)
+
+        # project back to size of vocabulary with bias
+        x = self.decoder(x)
+
+        return x
+
+class NeuronalLMHead(nn.Module):
+    """Roberta Head for masked language modeling."""
+
+    def __init__(self, roberta_config, neuronal_config):
+        super().__init__()
+        self.dense = nn.Linear(neuronal_config.expanded_size, roberta_config.hidden_size)
+        self.layer_norm = nn.LayerNorm(roberta_config.hidden_size, eps=roberta_config.layer_norm_eps)
+
+        self.decoder = nn.Linear(roberta_config.hidden_size, roberta_config.vocab_size, bias=False)
+        self.bias = nn.Parameter(torch.zeros(roberta_config.vocab_size))
+
+        # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
+        self.decoder.bias = self.bias
+
+    def forward(self, features, **kwargs):
+        x = self.dense(features)
+
         x = self.layer_norm(x)
 
         # project back to size of vocabulary with bias

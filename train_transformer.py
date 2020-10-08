@@ -16,14 +16,16 @@ tokenizer.enable_truncation(max_length=512)
 
 NUM_HEADS = 5
 VEC_LEN = 30
-DUPLICATE_OUTPUTS = 4
-
+DUPLICATE_OUTPUTS = 5
+USE_CONNECTIVITY = False
+NUM_NEURONS = 300
+HIDDEN_SIZE = 514
 from transformers_local.src.transformers.configuration_roberta import RobertaConfig
 
 roberta_config = RobertaConfig(
     vocab_size=52_000,
     max_position_embeddings=514,
-    hidden_size=VEC_LEN*DUPLICATE_OUTPUTS*NUM_HEADS,
+    hidden_size=HIDDEN_SIZE,
     num_attention_heads=NUM_HEADS,
     num_hidden_layers=6,
     type_vocab_size=1,
@@ -40,11 +42,12 @@ standard_config = RobertaConfig(
 
 from NeuronalTransformerLayers.NeuronBankConfig import NeuronBankConfig
 neuron_config = NeuronBankConfig(
-    query_len=VEC_LEN+1,
+    query_len=VEC_LEN,
     values_len=VEC_LEN,
     num_heads=NUM_HEADS,
     num_duplicates=DUPLICATE_OUTPUTS,
-    num_neurons=500,
+    num_neurons=NUM_NEURONS,
+    use_connectivity=USE_CONNECTIVITY
 )
 
 

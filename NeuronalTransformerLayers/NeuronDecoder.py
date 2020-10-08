@@ -13,10 +13,10 @@ class NeuronDecoder(nn.Module):
         self.num_heads = neuron_config.num_heads
         self.num_duplicates = neuron_config.num_duplicates
         self.query_len = neuron_config.query_len
-        self.query_linear = nn.Linear(roberta_config.hidden_size, self.query_len * self.num_heads * self.num_duplicates)
-        self.reembed_linear = nn.Linear(self.values_len * self.num_heads * self.num_duplicates, roberta_config.hidden_size)
+        self.query_linear = nn.Linear(neuron_config.expanded_size, self.query_len * self.num_heads * self.num_duplicates)
+        self.reembed_linear = nn.Linear(self.values_len * self.num_heads * self.num_duplicates, neuron_config.expanded_size)
 
-        self.layer_norm = torch.nn.LayerNorm(roberta_config.hidden_size, eps=neuron_config.layer_norm_eps)
+        self.layer_norm = torch.nn.LayerNorm(self.values_len * self.num_heads * self.num_duplicates, eps=neuron_config.layer_norm_eps)
 
     def separate_attention_heads(self, hidden_state, vec_len):
         hidden_state_shape = hidden_state.shape

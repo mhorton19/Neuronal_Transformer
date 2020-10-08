@@ -22,9 +22,9 @@ class NeuronalTransformer(nn.Module):
         self.num_iterations = neuron_config.num_iterations
         self.num_duplicates = neuron_config.num_duplicates
 
-        self.embedding_transformation = nn.Linear(roberta_config.hidden_size, roberta_config.hidden_size)
+        self.embedding_transformation = nn.Linear(roberta_config.hidden_size, neuron_config.expanded_size)
 
-        self.layer_norm = nn.LayerNorm(roberta_config.hidden_size, eps=roberta_config.layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(neuron_config.expanded_size, eps=roberta_config.layer_norm_eps)
 
         self.use_connectivity = neuron_config.use_connectivity
 
@@ -63,12 +63,17 @@ class NeuronalTransformer(nn.Module):
     ):
         hidden_states_transformed = self.embedding_transformation(hidden_states)
 
-        input_connectivity_sub = self.calc_connectivity_sub(self.input_connectivity_scalars)
-        neural_connectivity_sub = self.calc_connectivity_sub(self.neural_connectivity_scalars)
-        output_connectivity_sub = self.calc_connectivity_sub(self.output_connectivity_scalars)
+        if self.use_connectivity:
+            input_connectivity_sub = self.calc_connectivity_sub(self.input_connectivity_scalars)
+            neural_connectivity_sub = self.calc_connectivity_sub(self.neural_connectivity_scalars)
+            output_connectivity_sub = self.calc_connectivity_sub(self.output_connectivity_scalars)
 
-        repeated_input_connectivity = input_connectivity_sub.expand(-1, -1, -1, hidden_states.shape[1] * self.num_duplicates)
-        neuron_bank_connectivity_sub = torch.cat((repeated_input_connectivity, neural_connectivity_sub), axis=3)
+            repeated_input_connectivity = input_connectivity_sub.expand(-1, -1, -1, hidden_states.shape[1] * self.num_duplicates)
+            neuron_bank_connectivity_sub = torch.cat((repeated_input_connectivity, neural_connectivity_sub), axis=3)
+        else:
+            input_connectivity_sub = 0
+            neuron_bank_connectivity_sub = 0
+            output_connectivity_sub = 0
 
         hidden_states_transformed, neuronal_states = self.neuronal_layer(hidden_states_transformed,
                                                                              neuron_bank_connectivity_sub=input_connectivity_sub,
