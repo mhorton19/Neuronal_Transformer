@@ -30,13 +30,13 @@ class NeuronalTransformer(nn.Module):
 
         if self.use_connectivity:
             self.neural_connectivity_scalars = torch.nn.Parameter(
-                torch.Tensor(1, neuron_config.num_heads, neuron_config.num_neurons, neuron_config.num_neurons))
+                torch.Tensor(1, neuron_config.num_heads, neuron_config.num_neurons_per_group, neuron_config.num_neurons_per_group))
 
             self.input_connectivity_scalars = torch.nn.Parameter(
-                torch.Tensor(1, neuron_config.num_heads, neuron_config.num_neurons, 1))
+                torch.Tensor(1, neuron_config.num_heads, neuron_config.num_neurons_per_group, 1))
 
             self.output_connectivity_scalars = torch.nn.Parameter(
-                torch.Tensor(1, neuron_config.num_heads, 1, neuron_config.num_neurons))
+                torch.Tensor(1, neuron_config.num_heads, 1, neuron_config.num_neurons_per_group))
 
         self.connectivity_coefficient = neuron_config.connectivity_coefficient
         self.reset_parameters()
@@ -80,7 +80,8 @@ class NeuronalTransformer(nn.Module):
                                                                              output_connectivity_sub=output_connectivity_sub)
         for i in range(self.num_iterations-1):
             hidden_states_transformed, neuron_outputs = self.neuronal_layer(hidden_states_transformed,
-                                                                             prev_neuron_outputs=neuron_outputs,                                                          neuron_bank_connectivity_sub=neuron_bank_connectivity_sub,
+                                                                             prev_neuron_outputs=neuron_outputs,
+                                                                             neuron_bank_connectivity_sub=neuron_bank_connectivity_sub,
                                                                              output_connectivity_sub=output_connectivity_sub)
 
 

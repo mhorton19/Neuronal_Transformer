@@ -1,6 +1,6 @@
 class NeuronBankConfig():
-    def __init__(self, num_neurons=100, values_len=10, num_heads=10, query_len=11, layer_norm_eps=1e-12, num_duplicates=5, num_iterations=7, use_connectivity=True, connectivity_coefficient=10, expanded_size=3000):
-        self.num_neurons = num_neurons
+    def __init__(self, num_neurons_per_group=100, values_len=10, num_heads=10, query_len=11, layer_norm_eps=1e-12, num_duplicates=5, num_iterations=7, use_connectivity=True, connectivity_coefficient=10, expanded_size=3000, num_groups=2):
+        self.num_neurons_per_group = num_neurons_per_group
         self.values_len = values_len
         self.query_len = query_len
         self.num_heads = num_heads
@@ -10,3 +10,4 @@ class NeuronBankConfig():
         self.use_connectivity = use_connectivity
         self.connectivity_coefficient = connectivity_coefficient
         self.expanded_size = expanded_size
+        self.num_groups = num_groups

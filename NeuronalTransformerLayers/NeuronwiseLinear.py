@@ -47,7 +47,6 @@ class NeuronwiseLinear(nn.Module):
             transformed = transformed.permute((1,0,2))
 
         return transformed
-        #return F.linear(input, self.weight, self.bias)
 
     def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}'.format(

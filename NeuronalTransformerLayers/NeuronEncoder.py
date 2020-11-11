@@ -9,17 +9,19 @@ class NeuronEncoder(nn.Module):
 
         self.out_len = neuron_config.values_len * neuron_config.num_heads
         self.num_duplicates = neuron_config.num_duplicates
-        self.key_linear = nn.Linear(neuron_config.expanded_size, neuron_config.query_len * neuron_config.num_heads * self.num_duplicates)
-        self.value_linear = nn.Linear(neuron_config.expanded_size, neuron_config.values_len * neuron_config.num_heads * self.num_duplicates)
+        self.num_groups = neuron_config.num_groups
+
+        self.key_linear = nn.Linear(neuron_config.expanded_size, self.num_groups * neuron_config.query_len * neuron_config.num_heads * self.num_duplicates)
+        self.value_linear = nn.Linear(neuron_config.expanded_size, self.num_groups * neuron_config.values_len * neuron_config.num_heads * self.num_duplicates)
 
 
     def forward(self, embeddings):
         embeddings_shape = embeddings.shape
 
         output_keys = self.key_linear(embeddings)
-        output_keys = output_keys.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, -1)
+        output_keys = output_keys.view(embeddings_shape[0], self.num_groups, embeddings_shape[1] * self.num_duplicates, -1)
 
         output_vals = self.value_linear(embeddings)
-        output_vals = output_vals.view(embeddings_shape[0], embeddings_shape[1] * self.num_duplicates, -1)
+        output_vals = output_vals.view(embeddings_shape[0], self.num_groups, embeddings_shape[1] * self.num_duplicates, -1)
 
         return (output_keys, output_vals)

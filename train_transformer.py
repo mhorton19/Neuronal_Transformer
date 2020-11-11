@@ -13,10 +13,11 @@ tokenizer._tokenizer.post_processor = BertProcessing(
 tokenizer.enable_truncation(max_length=512)
 
 NUM_HEADS = 5
-VEC_LEN = 30
-DUPLICATE_OUTPUTS = 5
+VEC_LEN = 5
+DUPLICATE_OUTPUTS = 1
 USE_CONNECTIVITY = False
-NUM_NEURONS = 300
+NUM_NEURONS_PER_GROUP = 20
+NUM_GROUPS = 50
 HIDDEN_SIZE = 514
 EXPANDED_SIZE = 1500
 
@@ -46,7 +47,8 @@ neuron_config = NeuronBankConfig(
     values_len=VEC_LEN,
     num_heads=NUM_HEADS,
     num_duplicates=DUPLICATE_OUTPUTS,
-    num_neurons=NUM_NEURONS,
+    num_neurons_per_group=NUM_NEURONS_PER_GROUP,
+    num_groups=NUM_GROUPS,
     use_connectivity=USE_CONNECTIVITY,
     expanded_size=EXPANDED_SIZE
 )
